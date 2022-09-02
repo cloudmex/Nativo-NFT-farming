@@ -10,7 +10,7 @@ use near_sdk::{Promise, PromiseResult};
 use uint::construct_uint;
 use std::collections::HashMap;
 
-
+use std::collections::LinkedList;
 //use std::cmp::min;
 
 //use crate::internal::*;
@@ -417,6 +417,33 @@ impl NFTStaking {
     
         }   
     
+
+
+    //CREATE EVENTS
+     
+    pub fn create_event_for_nfts(&mut self,  event_info: StEvent) -> StEvent { 
+        let mut ev_data:StEvent=event_info.clone();
+        let last_event :EventId = self.last_staking_event_id;
+        let signer_id =env::signer_account_id();
+        let deposit = env::attached_deposit();
+
+        // the event id
+        ev_data.event_id=Some(last_event.clone().to_string());
+        //add the status
+        ev_data.status=Some(EventStatus::Created);
+        //set time created
+        ev_data.event_time=Some( NFTStaking::to_sec_u64(env::block_timestamp()) );
+        //the list of tokens stored
+        ev_data.event_nft_staked_id=Some(LinkedList::new())
+        ;
+        self.staking_event_by_id.insert(&last_event,&ev_data);
+        self.last_staking_event_id+=1;
+        self.internal_add_event_to_creator(&event_info.clone().event_owner, &last_event);
+        
+        ev_data
+       }   
+    
+
   // Método de procesamiento para promesa
   pub fn get_promise_result(&mut self ,contract_id:AccountId,signer_id:AccountId,msg_json:MsgInput)   {
          

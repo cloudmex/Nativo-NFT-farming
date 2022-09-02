@@ -68,29 +68,29 @@ impl NFTStaking {
 
 
     //add a auction to the set of tokens an owner has
-    pub(crate) fn internal_add_auction_to_owner(
+    pub(crate) fn internal_add_event_to_creator(
         &mut self,
         account_id: &AccountId,
-        auction_id: &EventId,
+        event_id: &EventId,
     ) {
-        // //get the set of tokens for the given account
-        // let mut auctions_set = self.auctions_per_owner.get(account_id).unwrap_or_else(|| {
-        //     //if the account doesn't have any tokens, we create a new unordered set
-        //     UnorderedSet::new(
-        //         StorageKey::AuctionPerOwnerInner {
-        //             //we get a new unique prefix for the collection
-        //             account_id_hash: hash_account_id(&account_id),
-        //         }
-        //         .try_to_vec()
-        //         .unwrap(),
-        //     )
-        // });
+        //get the set of tokens for the given account
+        let mut events_set = self.staking_events_by_creator.get(account_id).unwrap_or_else(|| {
+            //if the account doesn't have any tokens, we create a new unordered set
+            UnorderedSet::new(
+                StorageKey::EventsByCreatorInner {
+                    //we get a new unique prefix for the collection
+                    account_id_hash: hash_account_id(&account_id),
+                }
+                .try_to_vec()
+                .unwrap(),
+            )
+        });
 
         // //we insert the token ID into the set
-        // auctions_set.insert(auction_id);
+         events_set.insert(event_id);
 
         // //we insert that set for the given account ID. 
-        // self.auctions_per_owner.insert(account_id, &auctions_set);
+         self.staking_events_by_creator.insert(account_id, &events_set);
     }
 
      //remove a token from an owner (internal method and can't be called directly via CLI).

@@ -11,11 +11,11 @@ NFT staking allows you to farm $Ntv as reward blocking your NFT by tim period wi
 
 ### Dev account
 
-> `export CONTRACT_ID="dev-1661277753358-64242303541632"`
+> `export CONTRACT_ID="dev-1662064742631-56583329092440"`
 
 ### Sub account
 
-> `export CONTRACT_ID="staking.nativo_mkt.testnet"`
+> `export CONTRACT_ID="staking.nativo_mkt.testnet"  `
 
 ### Make a devdeploy run:
 
@@ -145,3 +145,10 @@ NFT staking allows you to farm $Ntv as reward blocking your NFT by tim period wi
 ### Recover a token from a dev account
 
 > `near call minterv2.nativo-minter.testnet nft_transfer '{"receiver_id": "dokxo_test.testnet", "token_id": "48", "memo": "Go Team :)"}' --accountId dev-1661277753358-64242303541632 --depositYocto 1  `
+
+
+
+### create a event stake
+
+ > `near call $CONTRACT_ID create_event_for_nfts '{"event_info": {"event_owner": "dokxo.testnet","event_tittle": "title","event_description": "descrip","event_media": "media","nft_contract": "minterv2.nativo-minter.testnet","event_time": 1234353454,"event_start_at": 1235677888,"event_blocked_until": 123456789,"reward_token": ["nativo-token.testnet"],"reward_accumulated": []}}' --accountId dokxo_test.testnet  `
+ 

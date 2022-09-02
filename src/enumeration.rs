@@ -1,3 +1,4 @@
+
 use crate::*;
 
 #[near_bindgen]
@@ -46,6 +47,24 @@ impl NFTStaking {
     }
 
      
+    pub fn get_staking_event_by_id(&self,st_event:u128)->Option<StEventOutput>{
+
+        let _event:Option<StEvent>= self.staking_event_by_id.get(&st_event);
+        if _event.is_some() {
+
+             Some(
+                StEventOutput {
+                    id:st_event.clone(),
+                    event:_event.unwrap(),
+                }
+            )
+        }
+        else{
+            None
+        }
+       
+    }
+
 
     pub fn get_all_nfts_for_token(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<StTokenOutput> {
         //where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index

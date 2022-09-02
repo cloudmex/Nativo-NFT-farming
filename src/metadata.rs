@@ -1,3 +1,7 @@
+ 
+use std::collections::LinkedList;
+
+
 use crate::*;
 
 //use std::mem::size_of;
@@ -34,6 +38,26 @@ pub enum StakingStatus {
     
 }
 
+/// Status of a auction.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub enum EventStatus {
+ 
+    //Stake has been started
+    Created,
+    //Stake has been paused by the owner
+    Suspended,
+    //Stake has been finished and can be claimed
+    Finished,
+    // If the owner withdraw before the block period ends.
+    Canceled,
+    //if the auction its ended and has a bid 
+    Claimed,
+    //The Stake doesnt exist
+    NotFound,
+    
+}
+
 
 
 /// Status of a auction.
@@ -47,34 +71,33 @@ pub enum TimePeriod {
 }
 
 /// Proposal for auctioning that are sent to this DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize,Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct StEvent {
+    //Event data
+    pub event_id:Option<String>,
+
     /// Original nft owner.
-    pub nft_owner: AccountId,
+    pub event_owner: AccountId,
+       /// Original nft owner.
+       pub event_tittle: Option<String>,   /// Original nft owner.
+       pub event_description: Option<String>,
+       pub event_media: Option<String>,
+    pub status :Option<EventStatus>,
     /// Original nft contract.
     pub nft_contract: AccountId,
-    /// NFT id in origin contract.
-    pub nft_id: String,
-    /// NFT media in origin contract.
-    pub nft_media: Option<String>,
-    /// Description of this auction.
-    pub description: Option<String>,
-    /// auction amount requested
-    pub auction_base_requested: SalePriceInYoctoNear,
-    /// auction amount that have to be payback to the nft owner
-    pub auction_payback: SalePriceInYoctoNear,
     /// Current status of the auction
-    pub status: StakingStatus,
-    /// Submission time
-    pub submission_time: EpochHeight,
-    /// When somebody auctioned.
-    pub auction_time: Option<EpochHeight>,
-    /// When will the bidding end and the bidder can withdraw the NFT
-    /// Also is the deadline when NFT owner can payback
-    pub auction_deadline: Option<EpochHeight>,
-    pub bidder_id: Option<AccountId>,
+    pub event_time: Option<EpochHeight>,
+    pub event_start_at:Option<TimestampSec> ,
+    pub event_blocked_until:EpochHeight ,
+    
+    pub reward_token:Vec<AccountId>,
+    
+    pub reward_accumulated:Vec<RewardAccumulated>,
+    
+    pub event_nft_staked_id:Option<LinkedList<StToken>> ,
+     
 
  }
 
@@ -115,14 +138,31 @@ pub struct StToken {
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize,Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Bid {
-    /// Id of the auction.
-    pub bidder_id: AccountId,
+   /// Id of the auction.
+   pub bidder_id: AccountId,
 
-    pub bid_amount: SalePriceInYoctoNear,
+   pub bid_amount: SalePriceInYoctoNear,
 }
 
 
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize,Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct RewardMultiplier {
+    
+     /// Id of the auction.
+     pub reward_address: AccountId,
 
+     pub reward_multiplier: u64,
+}
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize,Debug,Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct RewardAccumulated {
+    
+     /// Id of the auction.
+     pub reward_address: AccountId,
+
+     pub reward_accumulated: u64,
+}
 
 /// This is format of output via JSON for the auction.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize,Clone)]
@@ -132,6 +172,17 @@ pub struct StTokenOutput {
     pub id: TokenId,
     #[serde(flatten)]
     pub token: StToken,
+}
+
+
+/// This is format of output via JSON for the auction.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize,Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct StEventOutput {
+    /// Id of the auction.
+    pub id: EventId,
+    #[serde(flatten)]
+    pub event: StEvent,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize,Debug,Clone)]
