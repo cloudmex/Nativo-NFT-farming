@@ -9,8 +9,9 @@ use near_sdk::serde_json::{from_str};
 use near_sdk::{Promise, PromiseResult};
 use uint::construct_uint;
 use std::collections::HashMap;
-
+use try_catch::catch;
 use std::collections::LinkedList;
+//use std::convert::TryInto;
 //use std::cmp::min;
 
 //use crate::internal::*;
@@ -72,7 +73,7 @@ trait NonFungibleToken {
     );
 
      // change methods
-    fn get_promise_result(&self,contract_id:AccountId,signer_id:AccountId,msg_json:MsgInput) -> String;
+    fn get_promise_result(&self,contract_id:AccountId,_type:String ,_st_event_id:String,signer_id:AccountId,msg_json:MsgInput) -> String;
 
 }
 
@@ -84,7 +85,8 @@ pub trait ExternsContract {
     
     fn mint(&self, account_id:AccountId,amount: String) -> String;
     fn nft_token(& self,token_id: String);
-
+    fn ft_transfer_call(receiver_id: AccountId,amount: U128,memo: Option<String>,msg: String);
+    fn ft_transfer(receiver_id: AccountId, amount: U128, memo: Option<String>) ;
  }
 
  
@@ -287,7 +289,7 @@ impl NFTStaking {
     // When transfered succesful it is saved as a new requesting for auctioning
     pub fn nft_on_transfer(&mut self,sender_id: AccountId,previous_owner_id: AccountId,token_id: String,msg: String)  -> PromiseOrValue<bool>{
         
-       
+        env::log_str( &"no_transfer".to_string());
          let id_e:EventId = self.last_staking_token_id.into();
          let id_t:TokenId = self.last_staking_token_id as u128;
 
@@ -296,59 +298,88 @@ impl NFTStaking {
          let msg_json: MsgInput = from_str(&msg).unwrap();
         
          
-         let _tipe = msg_json.clone()._type.expect("the type is empty");
-       
-         if _tipe == "token".to_string()  {
+         let _type = msg_json.clone()._type.expect("the type is empty");
+         let st_event_id = msg_json.clone().st_event_id.expect("the st_event_id is empty");
+
+         
+        env::log_str( &"bf_transfer".to_string());
 
          //  ext_contract_nft::
          ext_contract::ext(env::predecessor_account_id())
          .with_static_gas(Gas(100_000_000_000_000))
          .nft_token(token_id)
          .then(this_contract::ext(env::current_account_id()).with_static_gas(Gas(15_000_000_000_000))
-         .get_promise_result(contract_id, signer_id, msg_json) );
+         .get_promise_result(contract_id,_type, st_event_id,signer_id, msg_json) );
        
-
-             
-
-         }else{
-            //as event
-         }
-       
+ 
        
         //If for some reason the contract failed it need to returns the NFT to the orig&inal owner (true)
         return PromiseOrValue::Value(false);
     }
 
   
-    #[payable]
+    
     pub fn calculate_reward_nft(&mut self, st_token: u128) -> StToken{
         //use a expect and explain that the auction wasnt found
-        let mut nft:StToken = self.staking_token_by_id.get(&st_token.clone()).expect("the token doesn't exist");
+        let mut nft:StToken = self.get_staking_token_by_id(st_token.clone()).expect("the token doesn't exist").token;
+       
+        let _reward= self.staking_token_by_id.get(&st_token.clone()).expect("the token doesn't exist").reward_token; 
+
+
         let signer_id =env::signer_account_id();
         let deposit = env::attached_deposit();
 
-        assert_eq!(signer_id==nft.nft_owner,true,"You are not the NFT owner");
+        assert_eq!(signer_id==nft.clone().nft_owner,true,"You are not the NFT owner");
 
         //get the variables to calculate
 
-        let farm_start_at =nft.clone().farm_start_at.expect("nft doesnt have farm_start_at ");
-        let time_elapsed=  NFTStaking::to_sec(env::block_timestamp()) - farm_start_at;
-        let _reward_multiply= nft.clone().reward_multiply.expect("the nft doesnt have reward multiplier"); 
-        let _reward_accumulated= time_elapsed.clone() as u64 * _reward_multiply.clone() * 1000 as u64;
+        let farm_start_at =&nft.clone().farm_start_at.expect("nft doesnt have farm_start_at ");
+         
 
-        nft.reward_accumulated=Some(_reward_accumulated);
+        env::log_str(&nft.clone().blocked_until.unwrap().to_string());
+        env::log_str(&farm_start_at.clone().to_string());
 
-        let ms = format!("{} * {} * 1000",time_elapsed,_reward_multiply);
-        env::log_str(&ms);
-       //validate that the blocked period has ended
-       //1-if is ended claim the rewards and the tokens
-       if nft.blocked_until.unwrap()<= NFTStaking::to_sec_u64(env::block_timestamp()) {
-           env::log_str("the stake period has ended");
-           nft.status=StakingStatus::Finished;
-       }else {
-           env::log_str("the stake period doesnt has ended");
-           nft.status=StakingStatus::Running;
-       }
+        env::log_str(&NFTStaking::to_sec_u64(env::block_timestamp()).to_string());
+
+        if nft.clone().blocked_until.unwrap()> NFTStaking::to_sec_u64(env::block_timestamp()) {
+            env::log_str("the reward time is running");
+            let  time_elapsed=  NFTStaking::to_sec(env::block_timestamp()) - farm_start_at.clone() as u32;
+       
+
+            catch! {
+                try {
+
+                    for _item in &_reward {
+              
+                        nft.reward_accumulated.clear();
+                        let token_address= _item.clone().reward_address;
+                        let token_multiplier:u64= _item.clone().reward_multiplier;
+                        let mult:u128 =100000000000000000000;
+                        let _reward_accumulated:u128 = (time_elapsed.clone() as u128 *  mult).into();
+        
+                        nft.reward_accumulated.push(RewardAccumulated {
+                                     reward_address:token_address.to_string().try_into().unwrap(),
+                                     reward_accumulated: _reward_accumulated,
+                                });
+        
+                    }
+        
+                    nft.status=StakingStatus::Running;
+                }
+                catch err {
+                    println!("you have not generated rewards : wait more time , {}", err)
+                }
+            };
+
+            
+
+        }
+        else{
+            env::log_str("the reward time is over");
+            nft.status=StakingStatus::Finished;
+        }
+        
+        
 
 
        self.staking_token_by_id.insert(&st_token, &nft.clone());
@@ -358,6 +389,7 @@ impl NFTStaking {
    
        }   
    
+    
      #[payable]
      pub fn withdraw_nft_owner(&mut self, st_token: u128,accept_withdraw:Option<bool>){
          //use a expect and explain that the auction wasnt found
@@ -366,30 +398,51 @@ impl NFTStaking {
          let deposit = env::attached_deposit();
  
          assert_eq!(signer_id==nft.nft_owner,true,"You are not the NFT owner");
-         assert_eq!(deposit==200000000000000000000000,true,"Please,attach 0.2"); //penalty 0.2 nears
+         assert_eq!(nft.clone().status!=StakingStatus::Claimed,true,"The Nft was claimed");
 
+       //  assert_eq!(deposit==200000000000000000000000,true,"Please,attach 0.2"); //penalty 0.2 nears
+       let mut token_updated:StToken=    self.calculate_reward_nft(st_token);
 
         //validate that the blocked period has ended
         //1-if is ended claim the rewards and the tokens
         if nft.blocked_until.unwrap()<= NFTStaking::to_sec_u64(env::block_timestamp()) {
             // the time has ended
-             
-                let mut token_updated:StToken=    self.calculate_reward_nft(st_token);
+             env::log_str("retrive to the owner");
+               
+                let _rewards_accumulated = token_updated.clone().reward_accumulated;
 
+                for _item_info in &_rewards_accumulated {
+                //pay the rewards with ft_transfer_call
+                    
+                env::log_str(&format!("{:?}",_item_info) );
+
+                //it works but the dev accotun doesnt have ntv
+
+                    ext_contract::ext(_item_info.clone().reward_address)
+                    .with_static_gas(Gas(10_000_000_000_000))
+                    .with_attached_deposit(1)
+                    .ft_transfer(
+                        token_updated.clone().nft_owner,
+                        U128::try_from(_item_info.reward_accumulated as u128).unwrap(),
+                        Some("gains payout".to_string()));
+
+
+         
+                }
+               
+                //make a  ft_transfer_call
+                //return the token 
+                this_contract::ext(nft.clone().nft_contract)
+                .with_static_gas(Gas(100_000_000_000_000)).with_attached_deposit(1)
+                .nft_transfer(token_updated.clone().nft_owner, token_updated.clone().nft_id.to_string(), "NFT claimed".to_string());
+
+   
                 token_updated.status=StakingStatus::Claimed;
                 self.staking_token_by_id.insert(&st_token.clone(), &token_updated.clone());
                 self.staking_tokens_active-=1;
 
-                //return the token 
-                this_contract::ext(env::current_account_id())
-                .with_static_gas(Gas(100_000_000_000_000))
-                .nft_transfer(token_updated.clone().nft_owner, token_updated.clone().nft_id.to_string(), "NFT claimed".to_string());
-
-                //pay the rewards
-                //make a  ft_transfer_call
-
             //retrieve the deposit amount
-            Promise::new(token_updated.clone().nft_owner).transfer(deposit);
+          //  Promise::new(token_updated.clone().nft_owner).transfer(deposit);
 
         }else {
              
@@ -427,6 +480,11 @@ impl NFTStaking {
         let signer_id =env::signer_account_id();
         let deposit = env::attached_deposit();
 
+
+        if ev_data.reward_token.is_empty(){
+            panic!("you have to add at least one reward ")
+        }
+
         // the event id
         ev_data.event_id=Some(last_event.clone().to_string());
         //add the status
@@ -434,8 +492,9 @@ impl NFTStaking {
         //set time created
         ev_data.event_time=Some( NFTStaking::to_sec_u64(env::block_timestamp()) );
         //the list of tokens stored
-        ev_data.event_nft_staked_id=Some(LinkedList::new())
-        ;
+        ev_data.event_nft_staked_id=Some(LinkedList::new());
+
+        
         self.staking_event_by_id.insert(&last_event,&ev_data);
         self.last_staking_event_id+=1;
         self.internal_add_event_to_creator(&event_info.clone().event_owner, &last_event);
@@ -445,12 +504,13 @@ impl NFTStaking {
     
 
   // Método de procesamiento para promesa
-  pub fn get_promise_result(&mut self ,contract_id:AccountId,signer_id:AccountId,msg_json:MsgInput)   {
-         
+  pub fn get_promise_result(&mut self ,contract_id:AccountId, _type:String, _st_event_id:Option<String>, signer_id:AccountId,msg_json:MsgInput)   {
+    env::log_str( &"on_promise_Result".to_string());
+
     assert_eq!(
         env::promise_results_count(),
         1,
-        "This is a callbacl module"
+        "This is a callback module"
     );
     match env::promise_result(0) {
         PromiseResult::NotReady => unreachable!(),
@@ -460,55 +520,148 @@ impl NFTStaking {
          }
         PromiseResult::Successful(result) => {
             let value = std::str::from_utf8(&result).unwrap();
-          //  env::log_str("regreso al market");
-          //  env::log_str(value);
+            env::log_str("regreso al market");
+            env::log_str(value);
             let tg: JsonToken = near_sdk::serde_json::from_str(&value).unwrap();
+
+            let event_at :Option<StEventOutput>=self.get_staking_event_by_id(_st_event_id.clone().unwrap().parse::<u128>().unwrap());
  
-            let reward_token = msg_json.reward_token.expect("the reward id is empty");
-            let _reward = self.stake_ft_contracts.get(&reward_token.clone()).expect("the reward doesnt exist");
-            let blocked_period_in_months=msg_json.blocked_period.expect("the blocked period is empty");
-            let release_date:u64 = MONTH_BLOCK_TIMESTAMP_IN_SECS*blocked_period_in_months;
-            let id_t = self.last_staking_token_id;
-            //as token
-            let new_token_st=  StToken {
-                st_id:id_t.clone().to_string(),
-               /// Original nft owner.
-                nft_owner: signer_id.clone(),
-               /// Original nft contract.
-                nft_contract: contract_id,
-               /// NFT id in origin contract.
-                nft_id: tg.token_id.to_string(),
-               /// NFT media in origin contract.
-                nft_media: Some(tg.metadata.media.expect("the media is empty")),
-               /// Description of this auction.
-                description:Some(tg.metadata.description.expect("the description is empty")),
-               /// Current status of the auction
-                status: StakingStatus::Running,
-               /// Submission time
-            
-               stake_time: NFTStaking::to_sec_u64(env::block_timestamp()) ,
-               farm_start_at:Some(NFTStaking::to_sec(env::block_timestamp()) ),
-               blocked_until:Some(NFTStaking::to_sec_u64(env::block_timestamp()) + release_date),
-               reward_token: Some(reward_token),
-               reward_accumulated: Some(0),
-               reward_multiply: Some(_reward.reward_multiplier.try_into().unwrap()),
            
-            };
-            self.staking_token_by_id.insert(&id_t.clone(), &new_token_st);
-            
-            self.last_staking_token_id +=1;
-            self.internal_add_st_token_to_owner(&signer_id, &id_t);
-            self.staking_tokens_active+=1;
+          
+           
+            let id_t = self.last_staking_token_id;
 
-      
-            env::log_str(
-                &json!({
-                "type": "new_token_st".to_string(),
-                "Id":"new_token_st_id ".to_string()+&id_t.to_string(),
-                })
-                    .to_string(),
-            );
 
+            if _type == "token".to_string()  {
+                env::log_str(&"as token".to_string());
+                let reward_token = msg_json.reward_token.expect("the reward id is empty");
+                let mut new_reward:Vec<RewardInfo>=Vec::new();
+                let _reward = self.stake_ft_contracts.get(&reward_token.clone()).expect("the reward doesnt exist");
+                let blocked_period_in_months=msg_json.blocked_period.expect("the blocked period is empty");
+                let release_date:u64 = MONTH_BLOCK_TIMESTAMP_IN_SECS*blocked_period_in_months;
+
+                new_reward.push(RewardInfo {
+                      reward_address: reward_token,
+                      reward_multiplier: _reward.reward_multiplier as u64,
+               });
+
+                //as token
+                        let new_token_st=  StToken {
+                            st_id:id_t.clone().to_string(),
+                            st_event_id:Some("NoEvent".to_string()),
+                        /// Original nft owner.
+                            nft_owner: signer_id.clone(),
+                        /// Original nft contract.
+                            nft_contract: contract_id,
+                        /// NFT id in origin contract.
+                            nft_id: tg.token_id.to_string(),
+                        /// NFT media in origin contract.
+                            nft_media: Some(tg.metadata.media.expect("the media is empty")),
+                        /// Description of this auction.
+                            description:Some(tg.metadata.description.expect("the description is empty")),
+                        /// Current status of the auction
+                            status: StakingStatus::Running,
+                        /// Submission time
+                        
+                        stake_time: NFTStaking::to_sec_u64(env::block_timestamp()) ,
+                        farm_start_at:Some(NFTStaking::to_sec_u64(env::block_timestamp()) ),
+                        blocked_until:Some(NFTStaking::to_sec_u64(env::block_timestamp()) + release_date),
+                        reward_token: new_reward,
+                        reward_accumulated: Vec::new(),
+                        
+                    
+                        };
+                        self.staking_token_by_id.insert(&id_t.clone(), &new_token_st);
+                        
+                        self.last_staking_token_id +=1;
+                        self.internal_add_st_token_to_owner(&signer_id, &id_t);
+                        self.staking_tokens_active+=1;
+
+                
+                        env::log_str(
+                            &json!({
+                            "type": "new_token_st".to_string(),
+                            "Id":"new_token_st_id ".to_string()+&id_t.to_string(),
+                            })
+                                .to_string(),
+                        );
+
+       
+                    
+       
+                }else{
+                   //as event
+                    if event_at.is_some(){
+                        env::log_str(&"as event".to_string());
+                      
+                            let mut event_info:StEvent=event_at.unwrap().event.clone();
+                            
+                            env::log_str(&event_info.clone().event_start_at.to_string());
+                            env::log_str(&NFTStaking::to_sec_u64(env::block_timestamp()).to_string() );
+                           let valid = if event_info.clone().event_start_at > NFTStaking::to_sec_u64(env::block_timestamp()) { true } else { false };
+                          
+                            env::log_str(&valid.to_string() );
+
+                            //if the event has starded
+                            assert!(event_info.clone().event_start_at > NFTStaking::to_sec_u64(env::block_timestamp()), "the time stake time has passed");
+                            //if the event has ended
+                            assert!(event_info.clone().event_blocked_until > NFTStaking::to_sec_u64(env::block_timestamp()), "the event has finished");
+
+                            let new_token_st=  StToken {
+                                st_id:id_t.clone().to_string(),
+                                st_event_id:Some(_st_event_id.clone().unwrap().to_string()),
+                            /// Original nft owner.
+                                nft_owner: signer_id.clone(),
+                            /// Original nft contract.
+                                nft_contract: contract_id,
+                            /// NFT id in origin contract.
+                                nft_id: tg.token_id.to_string(),
+                            /// NFT media in origin contract.
+                                nft_media: Some(tg.metadata.media.expect("the media is empty")),
+                            /// Description of this auction.
+                                description:Some(tg.metadata.description.expect("the description is empty")),
+                            /// Current status of the auction
+                                status: StakingStatus::Running,
+                            /// Submission time
+                            
+                                stake_time: NFTStaking::to_sec_u64(env::block_timestamp()) ,
+                                farm_start_at:Some(event_info.clone().event_start_at ),
+                                blocked_until:Some(event_info.clone().event_blocked_until),
+                                reward_token: event_info.clone().reward_token,
+                                reward_accumulated:event_info.clone().reward_accumulated,
+                               
+                        
+                            };
+                            //add the token to the contract
+                            self.staking_token_by_id.insert(&id_t.clone(), &new_token_st);
+                            self.last_staking_token_id +=1;
+                            self.internal_add_st_token_to_owner(&signer_id, &id_t);
+                            self.staking_tokens_active+=1;
+                            //add the event info  to the contract
+                           
+
+                   
+                         //copy the old list and 
+                        let mut _list:LinkedList<u128> =event_info.clone().event_nft_staked_id.unwrap();
+                            //add one token more
+                            _list.push_back(id_t.clone());
+                        //save the new list into the event
+                        event_info.event_nft_staked_id=Some(_list);
+                        //update the event
+                           self.staking_event_by_id.insert(&_st_event_id.clone().unwrap().parse::<u128>().unwrap(),&event_info);
+                        //log the result
+                            env::log_str(
+                                &json!({
+                                "type": "new_token_st".to_string(),
+                                "Id":"new_token_st_id ".to_string()+&id_t.to_string(),
+                                })
+                                    .to_string(),
+                            );
+                    }else{
+                        panic!("the event doesnt exist");
+                    }
+                }
+           
      
             
         }

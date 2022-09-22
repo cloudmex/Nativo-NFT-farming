@@ -582,6 +582,7 @@ dependencies = [
  "near-sdk",
  "near-sys",
  "serde_with",
+ "try-catch",
  "uint",
 ]
 
@@ -1292,6 +1293,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d82e1a7758622a465f8cee077614c73484dac5b836c02ff6a40d5d1010324d7"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "try-catch"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8ac07b511057dbab5380dbd9be97b8375c577136d45db42b63d039c83e54630"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

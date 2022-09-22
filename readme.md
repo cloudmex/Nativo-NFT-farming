@@ -1,6 +1,6 @@
 # Nativo NFT - *Staking*
 
-# ![Logo](https://develop.testnet.nativonft.app/static/media/LogoBlanco.30fcfa22.png)
+# ![Logo](https://develop.dphj3ja30lftx.amplifyapp.com/static/media/LogoBlanco.30fcfa22.png)
 <br>
 NFT staking allows you to farm $Ntv as reward blocking your NFT by tim period without loosing the ownership of your NFT's
 
@@ -11,11 +11,11 @@ NFT staking allows you to farm $Ntv as reward blocking your NFT by tim period wi
 
 ### Dev account
 
-> `export CONTRACT_ID="dev-1662064742631-56583329092440"`
+> `export CONTRACT_ID="dev-1663715186771-87155954122202" `
 
 ### Sub account
 
-> `export CONTRACT_ID="staking.nativo_mkt.testnet"  `
+> ` export CONTRACT_ID="v1.nativo_stake.testnet"  `
 
 ### Make a devdeploy run:
 
@@ -31,7 +31,7 @@ NFT staking allows you to farm $Ntv as reward blocking your NFT by tim period wi
 
 ## Initializing the contract
 
-> `near call $CONTRACT_ID new '{"owner_account_id": "dokxo.testnet","treasury_account_id": "dokxo.testnet","contract_interest": 800,"contract_fee": 200 }' --accountId dokxo.testnet`
+> ` near call $CONTRACT_ID new '{"owner_account_id": "dokxo.testnet","treasury_account_id": "dokxo.testnet","contract_interest": 800,"contract_fee": 200 }' --accountId dokxo.testnet`
 
 ## Views
 
@@ -84,15 +84,45 @@ NFT staking allows you to farm $Ntv as reward blocking your NFT by tim period wi
 > `near call $CONTRACT_ID set_ft_reward_info_contract '{"stake_ft_contract":"nativo_token.testnet","init_state":true,"_reward_multiplier":3,"_max_balance_per_month":10100}' --accountId dokxo.testnet `
 
 
-## recover the reward token by th stake id
 
-### 'nativo_token.testnet' is the id 1
+
+# 1 How to create a Event and list NFT in it
+
+### 1.1 Create a new event 
+
+> ` near call $CONTRACT_ID create_event_for_nfts '{"event_info": {"event_type": "Nativo","event_owner": "dokxo.testnet","event_tittle": "title","event_description": "descrip","event_media": "media","nft_contract": "minterv2.nativo-minter.testnet","event_time": 1663791579,"event_start_at": 1663791579,"event_blocked_until": 1663791639,"reward_token": [ { "reward_address":"nativo_token.testnet","reward_multiplier":10000}],"reward_accumulated": [] }}' --accountId dokxo_test.testnet  `
+
+ ### 1.2 Recover a event stake info
+> ` near view $CONTRACT_ID get_staking_event_by_id '{"st_event":8}'  `
+
+### List a NFT in the Event by id
+> ` near call minterv2.nativo-minter.testnet nft_transfer_call '{"receiver_id": "v1.nativo_stake.testnet","token_id":"93", "msg": "{\"_type\": \"event\",\"st_event_id\": \"7\" }"}' --accountId dokxo_test.testnet --depositYocto 1 --gas 300000000000000 `
+
+### Recover info about the NFT
+> ` near view $CONTRACT_ID get_staking_token_by_id '{"st_token":6}'  `
+
+### Also you can calculate how much reward have you winned(after the event has started).
+> ` near call $CONTRACT_ID calculate_reward_nft '{"st_token":6}' --accountId dokxo_test.testnet `
+
+### Claim your NFT and Event Rewards ( only the NFT's owner can claim  )
+> ` near call $CONTRACT_ID withdraw_nft_owner '{"st_token":6}' --accountId dokxo_test.testnet  --depositYocto 1 --gas 300000000000000 `
+
+
+
+
+
+# Stake a NFT
+
+ 
+### stake a NFT into a event 
+> `near call minterv2.nativo-minter.testnet nft_transfer_call '{"receiver_id": "dev-1663715186771-87155954122202","token_id":"93", "msg": "{\"_type\": \"token\",\"st_event_id\": \"8\" }"}' --accountId dokxo_test.testnet --depositYocto 1 --gas 300000000000000 `
+
+
+# Paginated methods
+
+## recover the reward token info by the address
 
 > `near view $CONTRACT_ID get_stake_ft_contract '{"stake_ft_contract":"nativo_token.testnet"}' `
-
-### Recover a token stake info
-
-> `near view $CONTRACT_ID get_staking_token_by_id '{"st_token":0}'  `
 
 
 ### View all the token staked
@@ -119,36 +149,3 @@ NFT staking allows you to farm $Ntv as reward blocking your NFT by tim period wi
 ### get tokens staked paginated by owner 
 `near view $CONTRACT_ID get_tokens_by_owner '{"account_id":"dokxo_test.testnet","from_index":"0","limit":50}' `
 
-### calculate the reward for a staked token
-> `near call $CONTRACT_ID calculate_reward_nft '{"st_token":2}' --accountId dokxo_test.testnet  `
-
-### withdraw a nft from stake
-### you must accept ot decline the withdraw and attach a penalty fee, if the time isnt over yet we'll take the penalty and 
-### send just the nft without the rewards earned.
-> `near call $CONTRACT_ID withdraw_nft_owner '{"st_token":0,"accept_withdraw":true}' --accountId dokxo.testnet --deposit 0.2`
-
-
-# Stake a NFT
-
-### Ask for a auctioning - Mintbase
-
-> `near call alst77.mintspace2.testnet nft_transfer_call '{"receiver_id": "dev-1648670267690-23487881027419","token_id":"0", "msg": "{\"description\": \"list a new nft for auctioning\", \"auction_amount_requested\": 100000000000000000000000000 }"}' --accountId alan_test.testnet --depositYocto 1 --gas 300000000000000`
-
-### Ask for a auctioning - Paras Id
-
-> `near call paras-token-v2.testnet nft_transfer_call '{"receiver_id": "dev-1647921766612-74437195022952","token_id": "299:9", "msg": "{\"description\": \"list my nft for auctioning\", \"auction_requested\": \"100000000000000000000000000\"}"}' --accountId alan_test.testnet --depositYocto 1 --gas 300000000000000`
-
-### Ask for a auctioning - Nativo NFT
-
-> `near call minterv2.nativo-minter.testnet nft_transfer_call '{"receiver_id": "dev-1661277753358-64242303541632","token_id":"48", "msg": "{\"_type\": \"token\",\"reward_token\": \"nativo_token.testnet\" ,\"blocked_period\": 1 }"}' --accountId dokxo_test.testnet --depositYocto 1 --gas 300000000000000 `
-
-### Recover a token from a dev account
-
-> `near call minterv2.nativo-minter.testnet nft_transfer '{"receiver_id": "dokxo_test.testnet", "token_id": "48", "memo": "Go Team :)"}' --accountId dev-1661277753358-64242303541632 --depositYocto 1  `
-
-
-
-### create a event stake
-
- > `near call $CONTRACT_ID create_event_for_nfts '{"event_info": {"event_owner": "dokxo.testnet","event_tittle": "title","event_description": "descrip","event_media": "media","nft_contract": "minterv2.nativo-minter.testnet","event_time": 1234353454,"event_start_at": 1235677888,"event_blocked_until": 123456789,"reward_token": ["nativo-token.testnet"],"reward_accumulated": []}}' --accountId dokxo_test.testnet  `
- 

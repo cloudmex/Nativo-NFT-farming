@@ -57,6 +57,19 @@ pub enum EventStatus {
     NotFound,
     
 }
+/// Status of a auction.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub enum EventType {
+ 
+//where the event comes from by the type 
+    Nativo,
+    //Paras.id
+    Paras,
+    //Any near Sdk standart
+    Standart,
+}
+
 
 
 
@@ -77,26 +90,27 @@ pub enum TimePeriod {
 pub struct StEvent {
     //Event data
     pub event_id:Option<String>,
+    pub event_type:EventType,
 
     /// Original nft owner.
     pub event_owner: AccountId,
        /// Original nft owner.
-       pub event_tittle: Option<String>,   /// Original nft owner.
-       pub event_description: Option<String>,
-       pub event_media: Option<String>,
+       pub event_tittle: String,   /// Original nft owner.
+       pub event_description:String,
+       pub event_media: String,
     pub status :Option<EventStatus>,
     /// Original nft contract.
     pub nft_contract: AccountId,
     /// Current status of the auction
     pub event_time: Option<EpochHeight>,
-    pub event_start_at:Option<TimestampSec> ,
+    pub event_start_at:EpochHeight ,
     pub event_blocked_until:EpochHeight ,
     
-    pub reward_token:Vec<AccountId>,
+    pub reward_token:Vec<RewardInfo>,
     
     pub reward_accumulated:Vec<RewardAccumulated>,
     
-    pub event_nft_staked_id:Option<LinkedList<StToken>> ,
+    pub event_nft_staked_id:Option<LinkedList<u128>> ,
      
 
  }
@@ -108,6 +122,7 @@ pub struct StEvent {
 #[serde(crate = "near_sdk::serde")]
 pub struct StToken {
     pub st_id:String,
+    pub st_event_id:Option<String>,
     /// Original nft owner.
     pub nft_owner: AccountId,
     /// Original nft contract.
@@ -122,13 +137,11 @@ pub struct StToken {
     pub status: StakingStatus,
     ///  time
     pub stake_time: EpochHeight,
-    pub farm_start_at:Option<TimestampSec> ,
+    pub farm_start_at:Option<EpochHeight> ,
     pub blocked_until:Option<EpochHeight> ,
     
-    pub reward_token:Option<AccountId>,
-    pub reward_multiply:Option<u64>,
-    pub reward_accumulated:Option<u64>,
-
+    pub reward_token:Vec<RewardInfo>,
+    pub reward_accumulated:Vec<RewardAccumulated>,
  
 
    
@@ -145,9 +158,9 @@ pub struct Bid {
 }
 
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize,Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize,Debug,Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct RewardMultiplier {
+pub struct RewardInfo {
     
      /// Id of the auction.
      pub reward_address: AccountId,
@@ -161,7 +174,7 @@ pub struct RewardAccumulated {
      /// Id of the auction.
      pub reward_address: AccountId,
 
-     pub reward_accumulated: u64,
+     pub reward_accumulated: u128,
 }
 
 /// This is format of output via JSON for the auction.
@@ -242,8 +255,9 @@ pub struct TokenOutput {
 #[serde(crate = "near_sdk::serde")]
 pub struct MsgInput {
     pub _type: Option<String>,
+    pub st_event_id: Option<String>,
     pub reward_token:Option<AccountId>,
-    pub blocked_period:Option<u64>
+    pub blocked_period:Option<u64>,
 }
 
 #[derive(Serialize, Deserialize)]
